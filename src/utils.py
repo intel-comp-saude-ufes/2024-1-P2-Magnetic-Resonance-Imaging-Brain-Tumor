@@ -1,8 +1,8 @@
 from tqdm import tqdm
 import numpy as np
 import torch
-from torch.utils.data import DataLoader, Dataset
 import os
+from torch.utils.data import DataLoader, Dataset
 from torchvision.io import read_image
 
 
@@ -28,6 +28,29 @@ class BrainTumorDataset(Dataset):
         if self.transform:
             img = self.transform(img)
         return img, label
+import os
+
+def save_checkpoint(filename, epoch, model, criterion, optimizer, loss, loss_val):
+    checkpoint = {
+        'epoch': epoch,
+        'model_state_dict': model.state_dict(),
+        'criterion': criterion,
+        'optimizer_state_dict': optimizer.state_dict(),
+        'loss': loss,
+        'loss_val': loss_val
+    }
+
+    torch.save(checkpoint, filename)
+
+def load_checkpoint(filename, model, optimizer):
+    checkpoint = torch.load(filename)
+
+    epoch = checkpoint['epoch']
+    model.load_state_dict(checkpoint['model_state_dict'])
+    criterion = checkpoint['criterion']
+    optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+
+    return epoch, model, criterion, optimizer
 
 def train_epoch(model, epoch, max_epoch, criterion, optimizer, data_loader, device):
     model.to(device)
@@ -64,8 +87,9 @@ def train_epoch(model, epoch, max_epoch, criterion, optimizer, data_loader, devi
                 f'Accuracy: {correct/total*100:.2f}% ]'
             )
             pbar.update()
-
-    return model
+    
+    avg_loss = running_loss / len(data_loader)
+    return avg_loss
 
 def evaluate_model(model, criterion, data_loader, device):
     model.to(device)
@@ -103,22 +127,30 @@ def evaluate_model(model, criterion, data_loader, device):
                 )
                 pbar.update()
     
+    avg_loss = running_loss / len(data_loader)
+    
     y_true = np.array(y_true)
     y_pred = np.array(y_pred)
 
-    return y_true, y_pred
+    return avg_loss, (y_true, y_pred)
 
+def train_model(model, max_epochs, criterion, optimizer, train_loader, val_loader, device, epoch=None, checkpoint_dir='./'):
 
-def train_model(model, criterion, optimizer, train_loader, device, max_epochs, val_loader=None):
-    for epoch in range(max_epochs):
-        model = train_epoch(model, epoch, max_epochs, criterion, optimizer, train_loader, device)
+    best_loss = np.inf
 
-        # TODO: save checkpoints
+    for epoch in range(epoch or 0, max_epochs):
+        loss = train_epoch(model, epoch, max_epochs, criterion, optimizer, train_loader, device)
+        loss_val, _ = evaluate_model(model, criterion, val_loader, device)
 
-        if val_loader is not None:
-            y_true, y_pred = evaluate_model(model, criterion, val_loader, device)
+        filename = os.path.join(checkpoint_dir, 'last_checkpoint.pth')
+        save_checkpoint(filename, epoch + 1, model, criterion, optimizer, loss, loss_val)
+
+        if loss < best_loss:
+            best_loss = loss
+            filename = os.path.join(checkpoint_dir, 'best_checkpoint.pth')
+            save_checkpoint(filename, epoch + 1, model, criterion, optimizer, loss, loss_val)
 
 def test_model(model, criterion, test_loader, device):
-    y_true, y_pred = evaluate_model(model, criterion, test_loader, device)
+    _, eval = evaluate_model(model, criterion, test_loader, device)
 
     # TODO: save test
