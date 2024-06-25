@@ -2,6 +2,34 @@ from tqdm import tqdm
 import numpy as np
 import torch
 import os
+from torch.utils.data import DataLoader, Dataset
+from torchvision.io import read_image
+
+
+def getDataloaders(training_data, test_data, batch_size, shuffle=True):
+    training_data = BrainTumorDataset(training_data)
+    test_data = BrainTumorDataset(test_data)
+    train_dataloader = DataLoader(training_data, batch_size=batch_size, shuffle=shuffle)
+    test_dataloader = DataLoader(test_data, batch_size=batch_size, shuffle=shuffle)
+    return train_dataloader, test_dataloader
+
+class BrainTumorDataset(Dataset):
+    def __init__(self, data, transform=None):
+        self.data = data        
+        self.transform = transform
+       
+        
+    def __len__(self):
+        return len(self.img_labels)
+
+    def __getitem__(self, idx):
+        img_path = self.data.iloc[idx]['Brain_Image']
+        img = read_image(img_path)
+        label = self.data.iloc[idx]['Tumor']
+        if self.transform:
+            img = self.transform(img)
+        return img, label
+import os
 
 def save_checkpoint(filename, epoch, model, criterion, optimizer, loss, loss_val):
     checkpoint = {
