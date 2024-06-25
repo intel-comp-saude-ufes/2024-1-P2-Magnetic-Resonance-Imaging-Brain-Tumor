@@ -1,0 +1,5 @@
+processed_data/
+resized/
+src/__pycache__/
+checkpoints/
+test_predictions.csv
