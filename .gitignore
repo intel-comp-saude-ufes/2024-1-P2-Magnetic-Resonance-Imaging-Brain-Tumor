@@ -3,3 +3,4 @@ resized/
 src/__pycache__/
 checkpoints/
 test_predictions.csv
+test.ipynb

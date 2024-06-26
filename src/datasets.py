@@ -1,10 +1,17 @@
 from torch.utils.data import DataLoader, Dataset
 from torchvision.io import read_image, ImageReadMode
 import torch
+from torchvision import transforms
 
-
+data_transforms = transforms.Compose([  
+    # transforms.ToPILImage(),
+    # transforms.Resize([224,224]),
+    # transforms.RandomHorizontalFlip(), 
+    transforms.ToTensor(),
+    transforms.Normalize(mean=(0.5,0.5,0.5), std=(0.5,0.5,0.5))
+])
 class BrainTumorDataset(Dataset):
-    def __init__(self, data, transform=None):
+    def __init__(self, data, transform=data_transforms):
         self.data = data
         self.transform = transform
 
@@ -19,6 +26,7 @@ class BrainTumorDataset(Dataset):
             img = self.transform(img)
         img = img.to(dtype=torch.float32)
         return img, label, img_path
+   
 
 
 def getDataloaders(training_data, test_data, batch_size, shuffle=True):
@@ -31,3 +39,5 @@ def getDataloaders(training_data, test_data, batch_size, shuffle=True):
     test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=shuffle)
 
     return train_dataloader, test_dataloader
+
+

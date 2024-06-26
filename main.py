@@ -2,7 +2,10 @@ import pandas as pd
 import torch
 from src.train import train_model, test_model
 from src.model import CNN
-from src.datasets import getDataloaders
+from src.datasets import getDataloaders, get_mean_std
+
+
+
 
 if __name__ == "__main__":
     model = CNN("vgg16", 4)
