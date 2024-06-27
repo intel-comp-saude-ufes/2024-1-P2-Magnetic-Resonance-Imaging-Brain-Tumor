@@ -1,53 +1,53 @@
-from torch.utils.data import DataLoader, Dataset
-from torchvision.io import read_image, ImageReadMode
-import torch
+from torch.utils.data import Dataset
 from torchvision import transforms
-
-data_transforms = transforms.Compose([  
-    # transforms.ToPILImage(),
-    # transforms.Resize([224,224]),
-    # transforms.RandomHorizontalFlip(), 
-    transforms.ToTensor(),
-    transforms.Normalize(mean=(0.5,0.5,0.5), std=(0.5,0.5,0.5))
-])
+from PIL import Image
+import numpy as np
+import pandas as pd
 
 class BrainTumorDataset(Dataset):
-    def __init__(self, data, transform=data_transforms):
+    def __init__(self, img_paths, labels, transform=None):
+        if transform is not None:
+            self.transform = transform
+        else:
+            self.transform = transforms.ToTensor()
 
-        ''' TODO
-        preciso de duas variaveis pra fazer o kfold
-        self.data (lista/array/etc de paths das imagens)
-        self.labels (lista/array/etc labels das imagens)
-        '''
-
-        self.data = data
-        self.transform = transform
+        self.data = np.array(img_paths)
+        self.labels = np.array(labels)
+      
 
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, idx):
-        img_path = self.data.iloc[idx]["Brain_Image"]
-        img = read_image(img_path, ImageReadMode.RGB)
-
-        ''' TODO?
-        esse read_image ja carrega a imagem como tensor,
-        então na hora do transforms.ToTensor() ta bugando,
-        mas desse jeito o range fica entre [0, 255] talvez
-        seja melhor ler com a biblioteca PIL e fazer o
-        transform, que fica entre [0, 1]
-        '''
-
-        label = self.data.iloc[idx]["Tumor"]
-        if self.transform:
-            img = self.transform(img)
-        img = img.to(dtype=torch.float32)
+        img_path = self.data[idx]
+        img = Image.open(img_path).convert("RGB")              
+        label = self.labels[idx]
+        img = self.transform(img)    
+        
         return img, label, img_path
 
+data_transforms = transforms.Compose([      
+    # transforms.RandomHorizontalFlip(), #opcional
+    transforms.ToTensor(), # já tranforma as imagens para o range [0,1]
+    # transforms.Normalize(mean=(0.5,0.5,0.5), std=(0.5,0.5,0.5)) #discutir importância
+])
+from sklearn.model_selection import train_test_split
 
-def load_dataset(dataset_path):
-    ''' TODO
-    pode carregar o dataset todo e retornar
-    '''
+def getDatasets(training_path, test_path, random_state):
+    training = pd.read_csv(training_path)
+    train_imgs_paths, train_labels = training['Brain_Image'], training['Tumor']
+    testing = pd.read_csv(test_path)
+    temp_imgs_paths, temp_labels = testing['Brain_Image'], testing['Tumor']
 
-    return BrainTumorDataset()
+    test_imgs_paths, val_imgs_paths, test_labels, val_labels = train_test_split(
+                                                                temp_imgs_paths, temp_labels, test_size=0.5, 
+                                                                random_state=10)
+    
+    train_dataset = BrainTumorDataset(train_imgs_paths, train_labels)
+    test_dataset = BrainTumorDataset(test_imgs_paths, test_labels)
+    val_dataset = BrainTumorDataset(val_imgs_paths, val_labels)
+    
+    return train_dataset, test_dataset, val_dataset
+
+
+    
