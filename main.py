@@ -4,7 +4,7 @@ from src.model import CNN
 from src.datasets import load_dataset
 
 from sklearn.model_selection import StratifiedKFold, train_test_split
-from torch.utils.data import SubsetRandomSampler, DataLoader
+from torch.utils.data import Subset, DataLoader
 
 def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -20,9 +20,9 @@ def main():
 
         train_idx, val_idx = train_test_split(train_val_idx, test_size=0.1, stratify=dataset.labels[train_val_idx])
 
-        train_sampler = SubsetRandomSampler(train_idx)
-        val_sampler = SubsetRandomSampler(val_idx)
-        test_sampler = SubsetRandomSampler(test_idx)
+        train_sampler = Subset(train_idx)
+        val_sampler = Subset(val_idx)
+        test_sampler = Subset(test_idx)
 
         train_loader = DataLoader(dataset, batch_size=batch_size, sampler=train_sampler)
         val_loader = DataLoader(dataset, batch_size=batch_size, sampler=val_sampler)
