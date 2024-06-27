@@ -30,8 +30,7 @@ def load_checkpoint(filename, model, optimizer):
 
 
 def train_epoch(model, epoch, max_epoch, criterion, optimizer, data_loader, device):
-    if device:
-        model.to(device)
+    model.to(device)
     model.train()
 
     running_loss = 0.0
@@ -70,9 +69,8 @@ def train_epoch(model, epoch, max_epoch, criterion, optimizer, data_loader, devi
     return avg_loss
 
 
-def evaluate_model(model, criterion, data_loader, device, save_path=False):
-    if device:
-        model.to(device)
+def evaluate_model(model, criterion, data_loader, device):
+    model.to(device)
     model.eval()
 
     running_loss = 0.0
@@ -110,9 +108,7 @@ def evaluate_model(model, criterion, data_loader, device, save_path=False):
                 pbar.update()
 
     avg_loss = running_loss / len(data_loader)
-    if save_path:
-        return avg_loss, (np.concatenate(y_true), np.concatenate(y_pred), paths)
-    return avg_loss, (np.concatenate(y_true), np.concatenate(y_pred))
+    return avg_loss, (np.concatenate(paths), np.concatenate(y_true), np.concatenate(y_pred))
 
 
 def train_model(
@@ -127,7 +123,6 @@ def train_model(
     checkpoint_dir="./checkpoints",
 ):
     best_loss = np.inf
-    optimizer = optimizer(model.parameters(), lr=0.001)
 
     for epoch in range(epoch or 0, max_epochs):
         loss = train_epoch(
@@ -140,21 +135,16 @@ def train_model(
             filename, epoch + 1, model, criterion, optimizer, loss, loss_val
         )
 
-        if loss < best_loss:
-            best_loss = loss
+        if loss_val < best_loss:
+            best_loss = loss_val
             filename = os.path.join(checkpoint_dir, "best_checkpoint.pth")
             save_checkpoint(
                 filename, epoch + 1, model, criterion, optimizer, loss, loss_val
             )
 
 
-def test_model(model, criterion, test_loader, device):
-    _, eval = evaluate_model(model, criterion, test_loader, device, save_path=True)
+def test_model(model, criterion, test_loader, device, filename="test_predictions.csv"):
+    _, eval = evaluate_model(model, criterion, test_loader, device)
 
-    paths = [x for i in eval[2] for x in i]
-    df = pd.DataFrame()
-    df["img"] = paths
-    df["label"] = eval[0]
-    df["prediction"] = eval[1]
-
-    df.to_csv("test_predictions.csv", index=False)
+    df = pd.DataFrame(zip(*eval), columns=["img_path", "label", "prediction"])
+    df.to_csv(filename, index=False)

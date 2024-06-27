@@ -10,8 +10,16 @@ data_transforms = transforms.Compose([
     transforms.ToTensor(),
     transforms.Normalize(mean=(0.5,0.5,0.5), std=(0.5,0.5,0.5))
 ])
+
 class BrainTumorDataset(Dataset):
     def __init__(self, data, transform=data_transforms):
+
+        ''' TODO
+        preciso de duas variaveis pra fazer o kfold
+        self.data (lista/array/etc de paths das imagens)
+        self.labels (lista/array/etc labels das imagens)
+        '''
+
         self.data = data
         self.transform = transform
 
@@ -21,23 +29,25 @@ class BrainTumorDataset(Dataset):
     def __getitem__(self, idx):
         img_path = self.data.iloc[idx]["Brain_Image"]
         img = read_image(img_path, ImageReadMode.RGB)
+
+        ''' TODO?
+        esse read_image ja carrega a imagem como tensor,
+        então na hora do transforms.ToTensor() ta bugando,
+        mas desse jeito o range fica entre [0, 255] talvez
+        seja melhor ler com a biblioteca PIL e fazer o
+        transform, que fica entre [0, 1]
+        '''
+
         label = self.data.iloc[idx]["Tumor"]
         if self.transform:
             img = self.transform(img)
         img = img.to(dtype=torch.float32)
         return img, label, img_path
-   
 
 
-def getDataloaders(training_data, test_data, batch_size, shuffle=True):
-    training_dataset = BrainTumorDataset(training_data)
-    test_dataset = BrainTumorDataset(test_data)
+def load_dataset(dataset_path):
+    ''' TODO
+    pode carregar o dataset todo e retornar
+    '''
 
-    train_dataloader = DataLoader(
-        training_dataset, batch_size=batch_size, shuffle=shuffle
-    )
-    test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=shuffle)
-
-    return train_dataloader, test_dataloader
-
-
+    return BrainTumorDataset()
