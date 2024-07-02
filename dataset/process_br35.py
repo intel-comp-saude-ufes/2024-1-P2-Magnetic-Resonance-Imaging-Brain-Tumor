@@ -40,7 +40,7 @@ def process(path, output_dir, metadata_filename):
             mask_save_path = os.path.join(output_dir, 'masks', f'mask_{count_total:04d}.png')
             preprocess_and_save_mask(image, mask_save_path)
 
-            label = 'No tumor'
+            label = 'no_tumor'
 
             info.append((pid, image_save_path, mask_save_path, label))
             count_total += 1
