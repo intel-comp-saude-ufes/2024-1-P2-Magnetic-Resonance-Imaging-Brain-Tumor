@@ -3,59 +3,36 @@ import torchvision.models as models
 
 
 class CNN(nn.Module):
-    def __init__(
-        self, model_arch, n_outputs, activation=None, pretrained=True, freeze_conv=True
-    ):
+    def __init__(self, model_arch, n_outputs, activation=None, pretrained=True):
         super(CNN, self).__init__()
 
-        if model_arch == "densenet121":
-            weights = models.DenseNet121_Weights.DEFAULT if pretrained else None
-            self.model = models.densenet121(weights=weights)
-            in_features = self.model.classifier.in_features
-            self.model.classifier = nn.Linear(in_features, n_outputs)
+        weights = 'DEFAULT' if pretrained else None
 
-        elif model_arch == "resnet18":
-            weights = models.ResNet18_Weights.DEFAULT if pretrained else None
-            self.model = models.resnet18(weights=weights)
+        if model_arch == "resnet101":
+            self.model = models.resnet101(weights=weights)
             in_features = self.model.fc.in_features
             self.model.fc = nn.Linear(in_features, n_outputs)
-
-        elif model_arch == "vgg16":
-            weights = models.VGG16_Weights.DEFAULT if pretrained else None
-            self.model = models.vgg16(weights=weights)
-            in_features = self.model.classifier[-1].in_features
-            self.model.classifier[-1] = nn.Linear(in_features, n_outputs)
+        
+        elif model_arch == "fcn_resnet101":
+            self.model = models.segmentation.fcn_resnet101(weights=weights, weights_backbone=weights)
+            in_channels = self.model.classifier[-1].in_channels
+            self.model.classifier[-1] = nn.Conv2d(in_channels, n_outputs, kernel_size=1)
+            self.model.aux_classifier = None
 
         else:
             raise NotImplementedError(
                 f'The "{model_arch}" model is not implemented. Please choose one'
-                ' of the following: "densenet121", "resnet18" or "vgg16".'
+                ' of the following: "resnet101" or "fcn_resnet101".'
             )
 
+        self.model_arch = model_arch
         self.activation = activation or nn.Identity()
-
-        if freeze_conv:
-            self._freeze_convolutional(model_arch)
 
     def forward(self, x):
         x = self.model(x)
+        x = self._model_out_parser(x)
         x = self.activation(x)
         return x
 
-    def _freeze_convolutional(self, model_arch):
-        for param in self.model.parameters():
-            param.requires_grad = False
-
-        parameters = None
-        if model_arch in ["densenet121", "vgg16"]:
-            parameters = self.model.classifier.parameters()
-        elif model_arch == "resnet18":
-            parameters = self.model.fc.parameters()
-        else:
-            raise NotImplementedError(
-                f'The "{model_arch}" model is not implemented. Please choose one'
-                ' of the following: "densenet121", "resnet18" or "vgg16".'
-            )
-
-        for param in parameters:
-            param.requires_grad = True
+    def _model_out_parser(self, x):
+        return x["out"] if self.model_arch == "fcn_resnet101" else x
