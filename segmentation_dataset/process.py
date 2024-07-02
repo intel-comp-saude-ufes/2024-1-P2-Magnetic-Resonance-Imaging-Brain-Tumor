@@ -13,10 +13,10 @@ def load_data(file_path):
 
             pid = tuple(map(int, data['PID'][:].flatten()))
             image = data['image'][:]
-            target = data['tumorMask'][:]
+            mask = data['tumorMask'][:]
             label = int(data['label'][:].item())
 
-            return pid, image, target, label
+            return pid, image, mask, label
 
     except Exception as e:
         print(f"Error loading {file_path}: {str(e)}")
@@ -34,10 +34,10 @@ def preprocess_and_save_image(image, image_path):
     image_pil = Image.fromarray(image_uint8, 'L')
     image_pil.save(image_path)
 
-def preprocess_and_save_target(target, target_path):
-    target[target != 0] = 255
-    target_pil = Image.fromarray(target, 'L')
-    target_pil.save(target_path)
+def preprocess_and_save_mask(mask, mask_path):
+    mask[mask != 0] = 255
+    mask_pil = Image.fromarray(mask, 'L')
+    mask_pil.save(mask_path)
 
 def preprocess_label(label):
     label_map = {
@@ -50,7 +50,7 @@ def preprocess_label(label):
 
 def process(path, output_dir='dataset'):
     os.makedirs(os.path.join(output_dir, 'images'), exist_ok=True)
-    os.makedirs(os.path.join(output_dir, 'targets'), exist_ok=True)
+    os.makedirs(os.path.join(output_dir, 'masks'), exist_ok=True)
 
     pids = {}
     count_pid = 0
@@ -61,7 +61,7 @@ def process(path, output_dir='dataset'):
     with tqdm(os.listdir(path)) as listdir:
         for file in listdir:
             file_path = os.path.join(path, file)
-            pid, image, target, label = load_data(file_path)
+            pid, image, mask, label = load_data(file_path)
 
             if pid is not None:
 
@@ -70,18 +70,18 @@ def process(path, output_dir='dataset'):
                 image_path = os.path.join(output_dir, 'images', f'image_{count_total:04d}.png')
                 preprocess_and_save_image(image, image_path)
 
-                target_path = os.path.join(output_dir, 'targets', f'target_{count_total:04d}.png')
-                preprocess_and_save_target(target, target_path)
+                mask_path = os.path.join(output_dir, 'masks', f'mask_{count_total:04d}.png')
+                preprocess_and_save_mask(mask, mask_path)
 
                 label = preprocess_label(label)
 
-                info.append((pid, image_path, target_path, label))
+                info.append((pid, image_path, mask_path, label))
                 count_total += 1
 
     return info
 
 def save_metadata(info):
-    df = pd.DataFrame(info, columns=['id', 'image_path', 'target_path', 'label'])
+    df = pd.DataFrame(info, columns=['id', 'image_path', 'mask_path', 'label'])
     df.to_csv('dataset/info.csv', index=False)
 
 if __name__ == "__main__":
