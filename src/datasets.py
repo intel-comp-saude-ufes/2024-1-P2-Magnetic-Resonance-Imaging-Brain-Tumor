@@ -26,11 +26,17 @@ class BrainTumorDataset(Dataset):
         
         return img, label, img_path
 
-data_transforms = transforms.Compose([      
-    # transforms.RandomHorizontalFlip(), #opcional
-    transforms.ToTensor(), # já tranforma as imagens para o range [0,1]
-    # transforms.Normalize(mean=(0.5,0.5,0.5), std=(0.5,0.5,0.5)) #discutir importância
-])
+transform_train = transforms.Compose([      
+                transforms.ColorJitter(brightness=0.4, contrast=0.3),
+                transforms.ToTensor(), 
+                transforms.Normalize(mean = [0.485, 0.456, 0.406], std = [0.229, 0.224, 0.225]) #discutir importância
+            ])
+
+transform_eval = transforms.Compose([             
+                transforms.ToTensor(),
+                transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+            ])
+
 from sklearn.model_selection import train_test_split
 
 def getDatasets(training_path, test_path, random_state):
@@ -43,9 +49,9 @@ def getDatasets(training_path, test_path, random_state):
                                                                 temp_imgs_paths, temp_labels, test_size=0.5, 
                                                                 random_state=10)
     
-    train_dataset = BrainTumorDataset(train_imgs_paths, train_labels)
-    test_dataset = BrainTumorDataset(test_imgs_paths, test_labels)
-    val_dataset = BrainTumorDataset(val_imgs_paths, val_labels)
+    train_dataset = BrainTumorDataset(train_imgs_paths, train_labels, transform=transform_train)
+    test_dataset = BrainTumorDataset(test_imgs_paths, test_labels, transform=transform_eval)
+    val_dataset = BrainTumorDataset(val_imgs_paths, val_labels, transform=transform_eval)
     
     return train_dataset, test_dataset, val_dataset
 
