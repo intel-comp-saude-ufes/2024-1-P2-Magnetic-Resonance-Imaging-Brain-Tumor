@@ -15,17 +15,14 @@ class Dice(nn.Module):
         if not self.multilabel:
             return self._dice(x, y).mean()
 
-        dice_per_class = torch.stack(
-            [self._dice(x[:, c], y[:, c]) for c in range(x.shape[1])], dim=1
-        )
+        # TODO: esse trecho não funciona durante o teste.
+        dice_per_class = torch.stack([self._dice(x[:, c], y[:, c]) for c in range(x.shape[1])], dim=1)
         return dice_per_class.mean(dim=1).mean()
 
     def _dice(self, x, y):
         tp = (x * y).sum(dim=self.dims)
         fp = (x * (1 - y)).sum(dim=self.dims)
         fn = ((1 - x) * y).sum(dim=self.dims)
-        # import ipdb; ipdb.set_trace()
-        # exit()
         return (2 * tp + self.smooth) / (2 * tp + fp + fn + self.smooth)
 
 

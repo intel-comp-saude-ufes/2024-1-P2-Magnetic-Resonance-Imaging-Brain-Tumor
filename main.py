@@ -1,71 +1,80 @@
 import torch
+import pandas as pd
 from src.train import train_model, test_model, load_checkpoint
 from src.model import CNN
-from src.datasets import getDatasets
-from src import helper
-from sklearn.model_selection import StratifiedKFold, train_test_split
-from torch.utils.data import Subset, DataLoader
+from src.datasets import split_datasets
 from src.metrics import SoftDiceLoss
-
-# def main():
-#     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#     dataset = load_dataset("path/dataset")
-
-#     n_splits = 5
-#     max_epochs = 10
-#     batch_size = 32
-
-#     skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=42)
-#     for fold, (train_val_idx, test_idx) in enumerate(skf.split(dataset.data, dataset.labels), 1):
-#         print(f'Fold {fold}/{n_splits}')
-
-#         train_idx, val_idx = train_test_split(train_val_idx, test_size=0.1, stratify=dataset.labels[train_val_idx])
-
-#         train_sampler = Subset(train_idx)
-#         val_sampler = Subset(val_idx)
-#         test_sampler = Subset(test_idx)
-
-#         train_loader = DataLoader(dataset, batch_size=batch_size, sampler=train_sampler)
-#         val_loader = DataLoader(dataset, batch_size=batch_size, sampler=val_sampler)
-#         test_loader = DataLoader(dataset, batch_size=batch_size, sampler=test_sampler)
-
-#         model = CNN("resnet18", 4, freeze_conv=False)
-#         criterion = torch.nn.CrossEntropyLoss()
-#         optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
-
-#         train_model(model, max_epochs, criterion, optimizer, train_loader, val_loader, device)
-#         model = load_checkpoint("./checkpoints/best_checkpoint.pth")[1]
-#         test_model(model, criterion, test_loader, device)
-#         print()
+from src.utils import parse_arguments, initialize_wandb
+from torch.utils.data import DataLoader
 
 
-def main2():
-    args = helper.parse_arguments()
-    # python3 ./main.py -tr processed_data/training_data.csv -te processed_data/test_data.csv -m resnet18 -e 100 -b 32
-    training_path = args.training_path
-    test_path = args.test_path
-    max_epochs = args.epochs
-    batch_size = args.batchsize
+def get_dataloaders(batch_size, segmentation, multilabel, **kwargs):
+    metadata = pd.read_csv("./dataset/data/info.csv")
+    # TODO: mudar script de download para que o 'info.csv' inclua 'dataset/' no caminho
+    metadata["image_path"] = "dataset/" + metadata["image_path"]
+    metadata["mask_path"] = "dataset/" + metadata["mask_path"]
 
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    training, validation, test = getDatasets(random_state=10)
+    # TODO: investigar se colocar exemplos sem tumor na segmentação faz diferença
 
+    if segmentation:
+        if multilabel:
+            # class_dict = {"no_tumor": 0, "glioma": 1, "meningioma": 2, "pituitary": 3}
+            metadata = metadata[metadata["label"] != "no_tumor"]
+            class_dict = {"glioma": 0, "meningioma": 1, "pituitary": 2}
+        else:
+            class_dict = {"no_tumor": 0, "glioma": 1, "meningioma": 1, "pituitary": 1}
+    else:
+        class_dict = {"no_tumor": 0, "glioma": 1, "meningioma": 2, "pituitary": 3}
+
+    metadata["label"] = metadata["label"].map(class_dict)
+
+    training, test, validation = split_datasets(metadata, random_state=10, segmentation=segmentation, n_classes=metadata["label"].nunique())
     train_loader = DataLoader(dataset=training, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(dataset=test, batch_size=batch_size, shuffle=True)
+    # test_loader = DataLoader(dataset=test, batch_size=batch_size, shuffle=True)
+    test_loader = test
     val_loader = DataLoader(dataset=validation, batch_size=batch_size, shuffle=True)
 
-    # model = CNN("resnet18", 4)
-    model = CNN("fcn_resnet101", 3)
-    criterion = SoftDiceLoss(True)
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+    return (train_loader, test_loader, val_loader)
 
-    train_model(
-        model, max_epochs, criterion, optimizer, train_loader, val_loader, device
+
+def run(configs):
+    train, test, val = get_dataloaders(**configs)
+
+    train_model(train_loader=train, val_loader=val, **configs)
+
+    model = load_checkpoint("./checkpoints/best_checkpoint.pth", **configs)[1]
+    test_model(model, test, **configs)
+
+
+def classification_config():
+    model = CNN("resnet101", 4)
+
+    return dict(
+        model=model,
+        criterion=torch.nn.CrossEntropyLoss(),
+        optimizer=torch.optim.Adam(model.parameters(), lr=0.001),
     )
-    model = load_checkpoint("./checkpoints/best_checkpoint.pth", model, optimizer)[1]
-    test_model(model, criterion, test_loader, device)
-    print()
+
+
+def segmentation_config(multilabel):
+    model = CNN("fcn_resnet101", 3 if multilabel else 1)
+
+    return dict(
+        model=model,
+        criterion=SoftDiceLoss(multilabel),
+        optimizer=torch.optim.Adam(model.parameters(), lr=0.001),
+    )
 
 
 if __name__ == "__main__":
-    main2()
+    config = parse_arguments()
+
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    config.update({"device": device})
+
+    # initialize_wandb(config)
+
+    run_configs = segmentation_config(config["multilabel"]) if config["segmentation"] else classification_config()
+    run_configs.update(config)
+
+    run(run_configs)

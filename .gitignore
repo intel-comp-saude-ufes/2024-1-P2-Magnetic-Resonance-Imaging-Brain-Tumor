@@ -8,3 +8,6 @@ dataset/data
 dataset/*.zip
 venv/
 test_predictions.pth
+wandb/
+wandb.env
+tests/
