@@ -6,6 +6,17 @@ import pandas as pd
 
 class BrainTumorDataset(Dataset):
     def __init__(self, img_paths, labels, transform=None):
+        '''
+        o dataset precisa armazenar as seguintes informações (arquivo info.csv):
+        ### id, image_path, mask_path, label ###
+
+        o id é o id do paciente, vai ser usado pra dividir,
+        treino/teste e se for fazer crossvalidation
+
+        seria interessante uma flag pra indicar se é classificação/segmentação
+        e uma flag pra indicar se a segmentação é binária/multiclasse
+        '''
+
         if transform is not None:
             self.transform = transform
         else:
@@ -24,6 +35,32 @@ class BrainTumorDataset(Dataset):
         label = self.labels[idx]
         img = self.transform(img)    
         
+        '''
+        as transformações devem ser aplicadas na imagem e na mascara ao
+        mesmo tempo (caso for segmentação), ja que uma depende da outra,
+        dar uma olhada na biblioteca 'Albumentations'
+
+        a mascara é um tensor [h, w] (não converter pra RGB). se for
+        segmentação multiclasse precisa transformar a mascara em um tensor
+        [c, h, w], onde  apenas a posição respectiva a label é preenchida
+        na dimensão c
+
+        exemplo:
+
+        c, h, w = 3, 2, 2
+
+        label = 1
+
+        mask = [[1, 0],
+                [0, 1]]
+
+        new_mask = [[[0, 0], [[1, 0], [[0, 0],
+                    [0, 0]], [0, 1]], [0, 0]]]
+
+
+        se for classificação retorna label como o label original mesmo (int)
+        se for segmentação retorna a mascara no lugar de label
+        '''
         return img, label, img_path
 
 transform_train = transforms.Compose([      
