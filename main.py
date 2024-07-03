@@ -5,6 +5,7 @@ from src.datasets import getDatasets
 from src import helper
 from sklearn.model_selection import StratifiedKFold, train_test_split
 from torch.utils.data import Subset, DataLoader
+from src.metrics import SoftDiceLoss
 
 # def main():
 #     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -37,33 +38,33 @@ from torch.utils.data import Subset, DataLoader
 #         test_model(model, criterion, test_loader, device)
 #         print()
 
+
 def main2():
     args = helper.parse_arguments()
-    # python3 ./main.py -tr processed_data/training_data.csv -te processed_data/test_data.csv
-    #         -m resnet18 -e 100 -b 32
+    # python3 ./main.py -tr processed_data/training_data.csv -te processed_data/test_data.csv -m resnet18 -e 100 -b 32
     training_path = args.training_path
     test_path = args.test_path
     max_epochs = args.epochs
     batch_size = args.batchsize
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    training, validation, test = getDatasets(training_path,
-                                             test_path, random_state=10)
-    
+    training, validation, test = getDatasets(random_state=10)
+
     train_loader = DataLoader(dataset=training, batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(dataset=test,batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(dataset=test, batch_size=batch_size, shuffle=True)
     val_loader = DataLoader(dataset=validation, batch_size=batch_size, shuffle=True)
 
-    model = CNN("resnet18", 4, freeze_conv=False)
-    criterion = torch.nn.CrossEntropyLoss()
-    optimizer = torch.optim.SGD(model.parameters(), lr=0.001)
+    # model = CNN("resnet18", 4)
+    model = CNN("fcn_resnet101", 3)
+    criterion = SoftDiceLoss(True)
+    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
-    train_model(model, max_epochs, criterion, optimizer, train_loader, val_loader, device)
-    model = load_checkpoint("./checkpoints/best_checkpoint.pth")[1]
+    train_model(
+        model, max_epochs, criterion, optimizer, train_loader, val_loader, device
+    )
+    model = load_checkpoint("./checkpoints/best_checkpoint.pth", model, optimizer)[1]
     test_model(model, criterion, test_loader, device)
     print()
-
-
 
 
 if __name__ == "__main__":

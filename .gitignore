@@ -7,3 +7,4 @@ test.ipynb
 dataset/data
 dataset/*.zip
 venv/
+test_predictions.pth

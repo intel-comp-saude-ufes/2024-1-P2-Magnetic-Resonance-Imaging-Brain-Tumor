@@ -73,7 +73,7 @@ def evaluate_model(model, criterion, data_loader, device, save_test=False):
 
     y_true = []
     y_pred = []
-    paths  = []
+    paths = []
 
     with torch.no_grad():
         with tqdm(data_loader) as tqdm_eval:
@@ -94,19 +94,20 @@ def evaluate_model(model, criterion, data_loader, device, save_test=False):
                     paths.extend(path)
 
                 tqdm_eval.set_description(
-                    f"[ Testing ]"
-                    f"[ Loss: {running_loss/total:.6f} ]"
+                    f"[ Testing ]" f"[ Loss: {running_loss/total:.6f} ]"
                 )
 
     avg_loss = running_loss / len(data_loader.dataset)
 
     result = None
     if save_test:
-        result = OrderedDict([
-            ('y_true', torch.cat(y_true)),
-            ('y_pred', torch.cat(y_pred)),
-            ('paths', paths)
-        ])
+        result = OrderedDict(
+            [
+                ("y_true", torch.cat(y_true)),
+                ("y_pred", torch.cat(y_pred)),
+                ("paths", paths),
+            ]
+        )
 
     return avg_loss, result
 
@@ -122,26 +123,35 @@ def train_model(
     epoch=None,
     checkpoint_dir="./checkpoints",
 ):
+    if not os.path.exists(checkpoint_dir):
+        os.mkdir(checkpoint_dir)
 
     best_loss = np.inf
     history = defaultdict(list)
 
     epoch = epoch if isinstance(epoch, int) else 0
     for epoch in range(epoch, max_epochs):
-        loss = train_epoch(model, epoch, max_epochs, criterion, optimizer, train_loader, device)
+        loss = train_epoch(
+            model, epoch, max_epochs, criterion, optimizer, train_loader, device
+        )
         loss_val, _ = evaluate_model(model, criterion, val_loader, device)
 
-        history['loss'].append(loss)
-        history['loss_val'].append(loss_val)
+        history["loss"].append(loss)
+        history["loss_val"].append(loss_val)
+        history["epoch"].append(epoch)
 
         filename = os.path.join(checkpoint_dir, "last_checkpoint.pth")
-        save_checkpoint(filename, epoch + 1, model, criterion, optimizer, loss, loss_val)
+        save_checkpoint(
+            filename, epoch + 1, model, criterion, optimizer, loss, loss_val
+        )
 
         if loss_val < best_loss:
             best_loss = loss_val
             filename = os.path.join(checkpoint_dir, "best_checkpoint.pth")
-            save_checkpoint(filename, epoch + 1, model, criterion, optimizer, loss, loss_val)
-    
+            save_checkpoint(
+                filename, epoch + 1, model, criterion, optimizer, loss, loss_val
+            )
+
     return history
 
 
