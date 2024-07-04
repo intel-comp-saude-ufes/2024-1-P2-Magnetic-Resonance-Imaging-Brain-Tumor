@@ -1,13 +1,8 @@
-processed_data/
-resized/
-analysis/__pycache__/
-src/__pycache__/
-checkpoints/
+__pycache__/
+runs/
 test.ipynb
 dataset/data
 dataset/*.zip
 venv/
-test_predictions.pth
 wandb/
 wandb.env
-tests/

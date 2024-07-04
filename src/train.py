@@ -134,9 +134,6 @@ def evaluate_model(model, data_loader, criterion, device, save_test=False):
 
 
 def train_model(model, train_loader: DataLoader, val_loader: DataLoader, max_epochs: int, criterion, optimizer, device, epoch=None, checkpoint_dir="./checkpoints", **kwargs):
-    if not os.path.exists(checkpoint_dir):
-        os.mkdir(checkpoint_dir)
-
     best_loss = np.inf
     history = defaultdict(list)
 
@@ -160,10 +157,7 @@ def train_model(model, train_loader: DataLoader, val_loader: DataLoader, max_epo
     return history
 
 
-def test_model(test_model, test_loader, criterion, device, test_dir="./tests", **kwargs):
-    if not os.path.exists(test_dir):
-        os.mkdir(test_dir)
-
-    for fold, dataloader in test_loader:
-        _, result = evaluate_model(test_model, dataloader, criterion, device, save_test=True)
-        torch.save(result, test_dir + f"/{fold}_predictions.pth")
+def test_model(test_model, test_loader: DataLoader, criterion, device, test_dir="./tests/", **kwargs):
+    _, result = evaluate_model(test_model, test_loader, criterion, device, save_test=True)
+    filename = os.path.join(test_dir, "test_predictions.pth")
+    torch.save(result, filename)

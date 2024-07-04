@@ -48,7 +48,6 @@ class BrainTumorDataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, idx):
-
         # TODO: fix opencv problem or change image reading/transformation pipeline
         img_path = self.data[idx]
         img = cv2.imread(img_path, cv2.IMREAD_COLOR)
@@ -72,15 +71,20 @@ class BrainTumorDataset(Dataset):
         return img, label, img_path
 
 
-class TestFolds:
-    """Basicamente, essa função guarda os índices de cada fold de teste e as configurações dos datasets do experimento (segmentation, n_classes).
-    Com essa classe, é possível fazer a divisão de folds dinamicamente e no final, testar cada uma separadamente, gerando um boxplot.
-    """
-
-    def __init__(self, metadata: pd.DataFrame, folds: list[np.ndarray], **kwargs):
+class CrossValidation:
+    def __init__(
+        self,
+        metadata: pd.DataFrame,
+        folds: list[np.ndarray],
+        val_size: int = 4,
+        random_state: int = 10,
+        **kwargs,
+    ):
         self.metadata = metadata
         self.folds = folds
         self.current_fold = 0
+        self.val_size = val_size
+        self.random_state = random_state
         self.kwargs = kwargs
 
     def __len__(self):
@@ -98,44 +102,33 @@ class TestFolds:
             raise StopIteration
 
         fold_name = "fold_{:02d}".format(self.current_fold)
-        idx = self.folds[fold_name]
+        train_val, test = self.folds[fold_name]
         self.current_fold += 1
 
-        return fold_name, BrainTumorDataset(metadata=self.metadata.iloc[idx], **self.kwargs)
+        train, val = _split_dataset(self.metadata.iloc[train_val], size=self.val_size, random_state=self.random_state)
+
+        return (
+            fold_name,
+            (
+                BrainTumorDataset(metadata=self.metadata.iloc[train], **self.kwargs),
+                BrainTumorDataset(metadata=self.metadata.iloc[test], **self.kwargs),
+                BrainTumorDataset(metadata=self.metadata.iloc[val], **self.kwargs),
+            ),
+        )
 
 
 from sklearn.model_selection import StratifiedGroupKFold
 
 
-def get_dataset_splits(dataset: pd.DataFrame, size: int, random_state: int = 10, debug=False) -> tuple[np.ndarray, np.ndarray]:
-    """Splits dataset.
-
-    Args:
-        dataset (pd.DataFrame): Dataset.
-        size (int): Number of splits (inverse of size).
-        random_state (int): Defaults to 10.
-        debug (bool, optional): Prints each fold's distribution. Defaults to False.
-
-    Returns:
-        tuple[np.ndarray, np.ndarray]: Train and test indices.
-    """
+def _split_dataset(dataset: pd.DataFrame, size: int, return_all_folds=False, random_state: int = 10) -> tuple[np.ndarray, np.ndarray] | dict[str : tuple[np.ndarray, np.ndarray]]:
     gss = StratifiedGroupKFold(n_splits=size, shuffle=True, random_state=random_state)
-    train, test = next(gss.split(dataset["image_path"], dataset["label"], dataset["id"]))
 
-    if debug:
-        print("Train: ", dataset.iloc[train]["label"].value_counts(normalize=True).mul(100).round(2))
-        print("Test: ", dataset.iloc[train]["label"].value_counts(normalize=True).mul(100).round(2))
-
-    return train, test
-
-
-def get_test_folds(dataset: pd.DataFrame, n_folds: int = 5, random_state: int = 10, debug=False):
-    gss = StratifiedGroupKFold(n_splits=n_folds, shuffle=True, random_state=random_state)
-    folds = {"fold_{:02d}".format(i): test for i, (_, test) in enumerate(gss.split(dataset["image_path"], dataset["label"], dataset["id"]))}
-
-    if debug:
-        for fold, idx in folds.items():
-            print("Fold {:02d}".format(fold), dataset.iloc[idx]["label"].value_counts(normalize=True).mul(100).round(2))
+    folds = {}
+    for i, f in enumerate(gss.split(dataset["image_path"], dataset["label"], dataset["id"])):
+        if not return_all_folds:
+            return f
+        fold_str = "fold_{:02d}".format(i)
+        folds[fold_str] = f
 
     return folds
 
@@ -147,18 +140,19 @@ def split_datasets(
     n_classes: int = 4,
     validation_size: int = 4,
     test_size: int = 10,
-    n_test_folds: int = 5,
+    cv: int = None,
 ):
     problem = dict(segmentation=segmentation, n_classes=n_classes)
 
-    train, test = get_dataset_splits(dataset, test_size, random_state)
-    # test_dataset = BrainTumorDataset(dataset.iloc[test], transform=transform_eval, **problem)
+    if cv:
+        folds = _split_dataset(dataset, size=cv, return_all_folds=True, random_state=random_state)
+        return CrossValidation(dataset, folds, validation_size, transform=transform_eval, **problem)
 
-    test_folds = get_test_folds(dataset.iloc[test], n_folds=n_test_folds, random_state=10)
-    test_dataset = TestFolds(dataset.iloc[test], test_folds, transform=transform_eval, **problem)
+    train_val, test = _split_dataset(dataset, size=test_size, random_state=random_state)
+    test_dataset = BrainTumorDataset(dataset.iloc[test], transform=transform_eval, **problem)
 
-    train_, val = get_dataset_splits(dataset.iloc[train], validation_size, random_state)
-    train_dataset = BrainTumorDataset(dataset.iloc[train_], transform=transform_train, **problem)
+    train, val = _split_dataset(dataset.iloc[train_val], size=validation_size, random_state=random_state)
+    train_dataset = BrainTumorDataset(dataset.iloc[train], transform=transform_train, **problem)
     val_dataset = BrainTumorDataset(dataset.iloc[val], transform=transform_eval, **problem)
 
-    return train_dataset, test_dataset, val_dataset
+    return [(None, (train_dataset, test_dataset, val_dataset))]

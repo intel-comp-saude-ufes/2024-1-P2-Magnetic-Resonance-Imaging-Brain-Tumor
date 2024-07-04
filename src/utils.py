@@ -10,6 +10,7 @@ def parse_arguments():
     parse.add_argument("--multilabel", help="Enable binary segmentation", action=argparse.BooleanOptionalAction, default=False)
     parse.add_argument("--max-epochs", type=int)
     parse.add_argument("--batch-size", type=int)
+    parse.add_argument("--cv", type=int, default=None)
 
     args = parse.parse_args()
     return vars(args)
