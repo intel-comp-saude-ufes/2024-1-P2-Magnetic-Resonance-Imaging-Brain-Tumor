@@ -92,16 +92,10 @@ def evaluate_model(model, data_loader, criterion, device, save_test=False):
     with torch.no_grad():
         with tqdm(data_loader) as tqdm_eval:
             for inputs, labels, path in tqdm_eval:
-
                 inputs, labels = inputs.to(device), labels.to(device)
-                if len(inputs.shape) < 4:
-                    inputs = inputs.unsqueeze(0)
 
                 # Forward pass
                 outputs = model(inputs)
-                if outputs.shape[0] == 1:
-                    outputs = outputs.squeeze()
-
                 loss = criterion(outputs, labels)
 
                 ## Statistics
@@ -109,10 +103,7 @@ def evaluate_model(model, data_loader, criterion, device, save_test=False):
                 total += inputs.size(0)
 
                 if save_test:
-                    if len(labels.shape) < 1:
-                        y_true.append(labels.cpu().item())
-                    else:
-                        y_true.append(labels.cpu())
+                    y_true.append(labels.cpu())
                     y_pred.append(outputs.cpu())
                     paths.append(path)
 
@@ -124,7 +115,7 @@ def evaluate_model(model, data_loader, criterion, device, save_test=False):
     if save_test:
         result = OrderedDict(
             [
-                ("y_true", torch.Tensor(y_true) if len(labels.shape) < 1 else torch.cat(y_true)),
+                ("y_true", torch.cat(y_true)),
                 ("y_pred", torch.cat(y_pred)),
                 ("paths", paths),
             ]
