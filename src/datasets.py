@@ -61,12 +61,12 @@ class BrainTumorDataset(Dataset):
 
         if self.segmentation:
             mask: torch.Tensor = transformed["mask"]
-            if self.n_classes == 2:
-                return img, mask, img_path
+            mask[mask != 0] = label
 
-            mask_ = torch.zeros((self.n_classes, *mask.shape))
-            mask_[label] = mask
-            return img, mask_, img_path
+            if self.n_classes == 2: mask = mask.float()
+            else: mask = mask.long()
+
+            return img, mask, img_path
 
         return img, label, img_path
 

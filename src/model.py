@@ -23,6 +23,7 @@ class CNN(nn.Module):
             raise NotImplementedError(f'The "{model_arch}" model is not implemented. Please choose one' ' of the following: "resnet101" or "fcn_resnet101".')
 
         self.model_arch = model_arch
+        self.n_outputs = n_outputs
         self.activation = activation or nn.Identity()
 
     def forward(self, x):
@@ -32,4 +33,10 @@ class CNN(nn.Module):
         return x
 
     def _model_out_parser(self, x):
-        return x["out"] if self.model_arch == "fcn_resnet101" else x
+        if self.model_arch == "fcn_resnet101":
+            x = x["out"]
+
+            if self.n_outputs == 1:
+                x = x.squeeze(1)
+
+        return x

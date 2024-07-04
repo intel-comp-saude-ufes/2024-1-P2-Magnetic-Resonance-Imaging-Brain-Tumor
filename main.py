@@ -3,7 +3,7 @@ import pandas as pd
 from src.train import train_model, test_model, load_checkpoint
 from src.model import CNN
 from src.datasets import split_datasets
-from src.metrics import SoftDiceLoss
+from src.metrics import SoftDiceLoss, ComposedLoss
 from src.utils import parse_arguments, initialize_wandb
 from torch.utils.data import DataLoader
 from datetime import datetime
@@ -84,9 +84,18 @@ def classification_config():
 def segmentation_config(multilabel):
     model = CNN("fcn_resnet101", 3 if multilabel else 1)
 
+    criterion = ComposedLoss(
+        loss_funcs=[
+            SoftDiceLoss(multilabel=multilabel),
+            torch.nn.CrossEntropyLoss()
+            if multilabel else
+            torch.nn.BCEWithLogitsLoss()
+        ]
+    )
+
     return dict(
         model=model,
-        criterion=SoftDiceLoss(multilabel),
+        criterion=criterion,
         optimizer=torch.optim.Adam(model.parameters(), lr=0.001),
     )
 
