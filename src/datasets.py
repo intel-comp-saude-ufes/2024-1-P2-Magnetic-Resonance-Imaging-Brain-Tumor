@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 import torch
-import cv2
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from torch.utils.data import Dataset
