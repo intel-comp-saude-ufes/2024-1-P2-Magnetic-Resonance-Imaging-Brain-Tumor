@@ -6,6 +6,7 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from torch.utils.data import Dataset
 from torchvision import transforms
+from PIL import Image
 
 
 transform_train = A.Compose(
@@ -48,11 +49,11 @@ class BrainTumorDataset(Dataset):
         return len(self.data)
 
     def __getitem__(self, idx):
-        # TODO: fix opencv problem or change image reading/transformation pipeline
         img_path = self.data[idx]
-        img = cv2.imread(img_path, cv2.IMREAD_COLOR)
+        img = np.array(Image.open(img_path).convert("RGB"))
+
         mask_path = self.masks[idx]
-        mask = cv2.imread(mask_path, cv2.IMREAD_GRAYSCALE)
+        mask = np.array(Image.open(mask_path))
 
         label = self.labels[idx]
 
