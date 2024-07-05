@@ -1,1 +1,33 @@
 # 2024-1-P2-Magnetic-Resonance-Imaging-Brain-Tumor-Classification
+
+## Installation (Current support for Linux only)
+
+### Access your machine with GPU support and clone the repository
+```
+# SSH to Linux server via designated port (for tensorboard)
+ssh -L 6006:LocalHost:6006 username@server_address
+
+# Clone the repository
+git clone git@github.com:intel-comp-saude-ufes/2024-1-P2-Magnetic-Resonance-Imaging-Brain-Tumor.git
+```
+
+## We recommend setting a python virtual environment to install the required packages
+```
+cd 2024-1-P2-Magnetic-Resonance-Imaging-Brain-Tumor
+python -m venv myenv 
+source myvenv/bin/activate
+pip install -r requirements.txt
+```
+## If you would like to use the same dataset as we did, run the following script (you may need a Kaggle account)
+```
+cd datasets
+bash script.sh
+```
+## Now you can run our program based on your needs
+-
+```
+cd ..
+python3 ./main.py # **flags 
+```
+
+
