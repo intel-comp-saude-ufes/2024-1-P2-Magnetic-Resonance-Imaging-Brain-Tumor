@@ -24,7 +24,15 @@ cd datasets
 bash script.sh
 ```
 ## Now you can run our program based on your needs
--
+**Note: To use tensor board you must open the application via the ssh port on the preferred browser, example address: http://localhost:6006/**
+
+-Options:
+* --segmentation: Enable segmentation task (default: False);
+* --multilabel: Enable binary segmentation (default: False);
+* --max-epochs: Maximum number of epochs ;
+* --batch-size: Batch size;
+* --cv: Number of cross validation folders (default: None);
+* --tensor-board: Use tensor board to track loss logs
 ```
 cd ..
 python3 ./main.py # **flags 
