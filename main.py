@@ -8,6 +8,10 @@ from src.utils import parse_arguments, initialize_wandb
 from torch.utils.data import DataLoader
 from datetime import datetime
 import os
+from torch.utils.tensorboard import SummaryWriter
+
+
+
 
 
 def prepare_dataset(segmentation, multilabel, cv=None, **kwargs):
@@ -53,6 +57,11 @@ def run(configs):
     now = datetime.now()
     date_time = now.strftime("run__%m_%d_%Y__%H_%M_%S")
 
+    if configs['tensor_board']:
+        writer = SummaryWriter('runs_tensor')
+    else: 
+        writer = None
+
     dataset = prepare_dataset(**configs)
 
     for i, splits in dataset:
@@ -63,13 +72,14 @@ def run(configs):
             save_dir = os.path.join(save_dir, i)
 
         __dir(save_dir)
-        train_model(train_loader=train, val_loader=val, checkpoint_dir=save_dir, **configs)
+        train_model(train_loader=train, val_loader=val, checkpoint_dir=save_dir, writer=writer, **configs)
 
         best_checkpoint = os.path.join(save_dir, "best_checkpoint.pth")
         model = load_checkpoint(best_checkpoint, **configs)[1]
 
         test_model(model, test, test_dir=save_dir, **configs)
-
+    if configs['tensor_board']:
+        writer.close()
 
 def classification_config():
     model = CNN("resnet101", 4)
@@ -99,16 +109,27 @@ def segmentation_config(multilabel):
         optimizer=torch.optim.Adam(model.parameters(), lr=0.001),
     )
 
+def printProblem(config):
+    print(f'>> Running on {config['device']}')
+    if config['segmentation'] and config['multilabel']:
+        print('>> Starting ResNet model for multilabel segmentaion task...')
+    elif config['segmentation']:
+        print('>> Starting ResNet model for segmentation task...')
+    else:
+        print('>> Starting ResNet model for multilabel classification task...')
+    print()
 
 if __name__ == "__main__":
     config = parse_arguments()
-
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     config.update({"device": device})
 
+    printProblem(config=config)
     # initialize_wandb(config)
+
+    
 
     run_configs = segmentation_config(config["multilabel"]) if config["segmentation"] else classification_config()
     run_configs.update(config)
-
+    
     run(run_configs)
