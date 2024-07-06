@@ -1,6 +1,6 @@
 # 2024-1-P2-Magnetic-Resonance-Imaging-Brain-Tumor-Classification
 
-## Installation (Current support for Linux only)
+## Installation
 
 ### Access your machine with GPU support and clone the repository
 ```
