@@ -1,7 +1,7 @@
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 from os.path import exists
 import argparse
-import wandb
+# import wandb
 
 
 def parse_arguments():
@@ -11,6 +11,7 @@ def parse_arguments():
     parse.add_argument("--max-epochs", type=int)
     parse.add_argument("--batch-size", type=int)
     parse.add_argument("--cv", type=int, default=None)
+    parse.add_argument("--tensor-board", action=argparse.BooleanOptionalAction, default=False)
 
     args = parse.parse_args()
     return vars(args)

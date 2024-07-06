@@ -4,6 +4,7 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader
 import os
+from torch.utils.tensorboard import SummaryWriter
 
 
 def save_checkpoint(filename, epoch, model, criterion, optimizer, loss, loss_val):
@@ -124,10 +125,10 @@ def evaluate_model(model, data_loader, criterion, device, save_test=False):
     return avg_loss, result
 
 
-def train_model(model, train_loader: DataLoader, val_loader: DataLoader, max_epochs: int, criterion, optimizer, device, epoch=None, checkpoint_dir="./checkpoints", **kwargs):
+def train_model(model, train_loader: DataLoader, val_loader: DataLoader, max_epochs: int, 
+                criterion, optimizer, device, epoch=None, checkpoint_dir="./checkpoints", writer = None, **kwargs):
     best_loss = np.inf
     history = defaultdict(list)
-
     epoch = epoch if isinstance(epoch, int) else 0
     for epoch in range(epoch, max_epochs):
         loss = train_epoch(model, train_loader, epoch, max_epochs, criterion, optimizer, device)
@@ -136,6 +137,13 @@ def train_model(model, train_loader: DataLoader, val_loader: DataLoader, max_epo
         history["loss"].append(loss)
         history["loss_val"].append(loss_val)
         history["epoch"].append(epoch)
+        
+        if writer:                  
+            temp = {
+                "Train": loss,
+                "Val": loss_val
+            }
+            writer.add_scalars("Loss", temp, epoch)
 
         filename = os.path.join(checkpoint_dir, "last_checkpoint.pth")
         save_checkpoint(filename, epoch + 1, model, criterion, optimizer, loss, loss_val)
@@ -144,7 +152,6 @@ def train_model(model, train_loader: DataLoader, val_loader: DataLoader, max_epo
             best_loss = loss_val
             filename = os.path.join(checkpoint_dir, "best_checkpoint.pth")
             save_checkpoint(filename, epoch + 1, model, criterion, optimizer, loss, loss_val)
-
     return history
 
 
