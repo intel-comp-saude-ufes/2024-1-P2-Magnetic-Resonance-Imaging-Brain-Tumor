@@ -18,7 +18,8 @@ python -m venv myenv
 source myvenv/bin/activate
 pip install -r requirements.txt
 ```
-## If you would like to use the same dataset as we did, run the following script (you may need a Kaggle account)
+## If you would like to use the same dataset as we did, run the following script 
+**Note: you may need a Kaggle account**
 ```
 cd datasets
 bash script.sh
