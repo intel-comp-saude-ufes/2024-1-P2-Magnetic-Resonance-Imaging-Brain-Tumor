@@ -25,7 +25,6 @@ def prepare_dataset(multilabel, cv, test_size, val_size, **kwargs):
 
 
 def run(configs):
-    writer = SummaryWriter("runs_tensor") if configs["tensor_board"] else None
 
     last_checkpoint = configs["resume"]
     best_checkpoint = configs["test"]
@@ -39,6 +38,11 @@ def run(configs):
         date_time = datetime.now().strftime("run__%m_%d_%Y__%H_%M_%S")
 
     save_dir = os.path.join("./runs", date_time)
+    if configs["tensor_board"]:
+        writer_dir = os.path.join(save_dir, "tensorboard")
+        writer = SummaryWriter(writer_dir)
+    else:
+        writer = None
 
     dataset = prepare_dataset(**configs)
     for i, splits in dataset:
@@ -46,13 +50,15 @@ def run(configs):
             if fold != i:
                 continue
 
+        configs.update(segmentation_config(configs["multilabel"], configs["device"]))
+
         fold_dir = os.path.join(save_dir, i)
         os.makedirs(fold_dir, exist_ok=True)
 
         train, test, val = prepare_dataloader(splits, configs["batch_size"])
 
         if not best_checkpoint:
-            train_model(train_loader=train, val_loader=val, checkpoint_dir=fold_dir, resume_from=last_checkpoint, writer=writer, **configs)
+            train_model(train_loader=train, val_loader=val, checkpoint_dir=fold_dir, resume_from=last_checkpoint, writer=writer, fold=i, **configs)
             if last_checkpoint:
                 last_checkpoint = None
 
@@ -60,6 +66,7 @@ def run(configs):
         model = load_checkpoint(best_checkpoint, **configs)[1]
 
         test_model(model, test, test_dir=fold_dir, **configs)
+        best_checkpoint = None
 
     if configs["tensor_board"]:
         writer.close()
@@ -81,12 +88,11 @@ def printProblem(config):
     device = config["device"]
     print(f">> Running on {device}")
 
+    model = type(config["model"].model).__name__
     if config["multilabel"]:
-        print(">> Starting ResNet model for multilabel segmentaion task...")
+        print(f">> Starting {model} for multilabel segmentaion task...\n")
     else:
-        print(">> Starting ResNet model for segmentation task...")
-
-    print()
+        print(f">> Starting {model} for segmentation task...\n")
 
 
 if __name__ == "__main__":
@@ -94,11 +100,8 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     config.update({"device": device})
 
-    print(config)
-
-    printProblem(config=config)
-
     run_configs = segmentation_config(config["multilabel"], device)
     run_configs.update(config)
 
+    printProblem(run_configs)
     run(run_configs)

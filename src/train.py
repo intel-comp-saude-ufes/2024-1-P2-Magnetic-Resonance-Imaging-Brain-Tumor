@@ -3,6 +3,7 @@ from tqdm import tqdm
 import numpy as np
 import torch
 import os
+from torch.utils.tensorboard import SummaryWriter
 
 
 def save_checkpoint(filename, epoch, model, criterion, optimizer, loss, loss_val):
@@ -93,7 +94,7 @@ def evaluate_model(model, data_loader, criterion, device, save_test=False):
 
                 tqdm_eval.set_description(f"[ Testing ]" f"[ Loss: {running_loss/total:.6f} ]")
 
-    avg_loss = running_loss / len(data_loader)
+    avg_loss = running_loss / len(data_loader.dataset)
 
     result = None
     if save_test:
@@ -117,8 +118,9 @@ def train_model(
     criterion,
     device,
     checkpoint_dir="./checkpoints",
-    resume_from=None,
-    writer=None,
+    resume_from: str = None,
+    fold: str = None,
+    writer: SummaryWriter = None,
     **kwargs,
 ):
     best_loss = np.inf
@@ -132,8 +134,8 @@ def train_model(
         loss_val, _ = evaluate_model(model, val_loader, criterion, device)
 
         if writer:
-            temp = {"Train": loss, "Val": loss_val}
-            writer.add_scalars("Loss", temp, epoch)
+            temp = {"train": loss, "val": loss_val}
+            writer.add_scalars(f"loss_{fold}", temp, epoch + 1)
 
         filename = os.path.join(checkpoint_dir, "last_checkpoint.pth")
         save_checkpoint(filename, epoch + 1, model, criterion, optimizer, loss, loss_val)
