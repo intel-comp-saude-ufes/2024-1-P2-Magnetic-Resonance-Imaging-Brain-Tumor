@@ -65,8 +65,8 @@ def run(configs):
         writer.close()
 
 
-def segmentation_config(multilabel):
-    model = CNN(3 if multilabel else 1)
+def segmentation_config(multilabel, device):
+    model = CNN(3 if multilabel else 1).to(device)
 
     criterion = ComposedLoss(loss_funcs=[SoftDiceLoss(multilabel=multilabel), torch.nn.CrossEntropyLoss() if multilabel else torch.nn.BCEWithLogitsLoss()])
 
@@ -98,7 +98,7 @@ if __name__ == "__main__":
 
     printProblem(config=config)
 
-    run_configs = segmentation_config(config["multilabel"])
+    run_configs = segmentation_config(config["multilabel"], device)
     run_configs.update(config)
 
     run(run_configs)

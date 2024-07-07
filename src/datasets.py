@@ -7,13 +7,12 @@ from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from PIL import Image
 
-
 transform_train = A.Compose(
     [
         A.Resize(224, 224),
         A.Affine(translate_percent=0.04, scale=(0.8, 1.2)),
-        A.ColorJitter(brightness=0.4, contrast=0.3),
-        A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),  # discutir importância
+        A.ColorJitter(brightness=(0.6, 1.4), contrast=(0.7, 1.3)),
+        A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ToTensorV2(transpose_mask=True),
     ]
 )

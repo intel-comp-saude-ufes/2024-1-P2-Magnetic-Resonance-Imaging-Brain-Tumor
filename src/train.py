@@ -14,7 +14,6 @@ def save_checkpoint(filename, epoch, model, criterion, optimizer, loss, loss_val
         "loss": loss,
         "loss_val": loss_val,
     }
-
     torch.save(checkpoint, filename)
 
 

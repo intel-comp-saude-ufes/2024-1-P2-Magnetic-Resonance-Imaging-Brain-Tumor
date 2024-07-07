@@ -8,7 +8,7 @@ class CNN(nn.Module):
 
         weights = "DEFAULT" if pretrained else None
 
-        self.model = models.segmentation.fcn_resnet101(weights=weights, weights_backbone=weights)
+        self.model = models.segmentation.deeplabv3_resnet101(weights=weights, weights_backbone=weights)
         in_channels = self.model.classifier[-1].in_channels
         self.model.classifier[-1] = nn.Conv2d(in_channels, n_outputs, kernel_size=1)
         self.model.aux_classifier = None
