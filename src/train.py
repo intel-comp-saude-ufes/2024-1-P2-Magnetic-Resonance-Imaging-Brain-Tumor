@@ -2,9 +2,7 @@ from collections import OrderedDict, defaultdict
 from tqdm import tqdm
 import numpy as np
 import torch
-from torch.utils.data import DataLoader
 import os
-from torch.utils.tensorboard import SummaryWriter
 
 
 def save_checkpoint(filename, epoch, model, criterion, optimizer, loss, loss_val):
@@ -106,7 +104,7 @@ def evaluate_model(model, data_loader, criterion, device, save_test=False):
                 if save_test:
                     y_true.append(labels.cpu())
                     y_pred.append(outputs.cpu())
-                    paths.append(path)
+                    paths.extend(path)
 
                 tqdm_eval.set_description(f"[ Testing ]" f"[ Loss: {running_loss/total:.6f} ]")
 
@@ -125,8 +123,7 @@ def evaluate_model(model, data_loader, criterion, device, save_test=False):
     return avg_loss, result
 
 
-def train_model(model, train_loader: DataLoader, val_loader: DataLoader, max_epochs: int, 
-                criterion, optimizer, device, epoch=None, checkpoint_dir="./checkpoints", writer = None, **kwargs):
+def train_model(model, train_loader, val_loader, max_epochs: int, criterion, optimizer, device, epoch=None, checkpoint_dir="./checkpoints", writer=None, **kwargs):
     best_loss = np.inf
     history = defaultdict(list)
     epoch = epoch if isinstance(epoch, int) else 0
@@ -137,12 +134,9 @@ def train_model(model, train_loader: DataLoader, val_loader: DataLoader, max_epo
         history["loss"].append(loss)
         history["loss_val"].append(loss_val)
         history["epoch"].append(epoch)
-        
-        if writer:                  
-            temp = {
-                "Train": loss,
-                "Val": loss_val
-            }
+
+        if writer:
+            temp = {"Train": loss, "Val": loss_val}
             writer.add_scalars("Loss", temp, epoch)
 
         filename = os.path.join(checkpoint_dir, "last_checkpoint.pth")
@@ -152,10 +146,11 @@ def train_model(model, train_loader: DataLoader, val_loader: DataLoader, max_epo
             best_loss = loss_val
             filename = os.path.join(checkpoint_dir, "best_checkpoint.pth")
             save_checkpoint(filename, epoch + 1, model, criterion, optimizer, loss, loss_val)
+
     return history
 
 
-def test_model(test_model, test_loader: DataLoader, criterion, device, test_dir="./tests/", **kwargs):
+def test_model(test_model, test_loader, criterion, device, test_dir="./tests/", **kwargs):
     _, result = evaluate_model(test_model, test_loader, criterion, device, save_test=True)
     filename = os.path.join(test_dir, "test_predictions.pth")
     torch.save(result, filename)
