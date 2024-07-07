@@ -25,24 +25,41 @@ def prepare_dataset(multilabel, cv, test_size, val_size, **kwargs):
 
 
 def run(configs):
-    now = datetime.now()
-    date_time = now.strftime("run__%m_%d_%Y__%H_%M_%S")
-
     writer = SummaryWriter("runs_tensor") if configs["tensor_board"] else None
+
+    last_checkpoint = configs["resume"]
+    best_checkpoint = configs["test"]
+
+    if last_checkpoint:
+        date_time, fold = last_checkpoint.split("/")
+        last_checkpoint = os.path.join("./runs", last_checkpoint, "last_checkpoint.pth")
+    elif best_checkpoint:
+        date_time, fold = best_checkpoint.split("/")
+    else:
+        date_time = datetime.now().strftime("run__%m_%d_%Y__%H_%M_%S")
+
+    save_dir = os.path.join("./runs", date_time)
 
     dataset = prepare_dataset(**configs)
     for i, splits in dataset:
-        save_dir = os.path.join("./runs", date_time, i)
-        os.makedirs(save_dir)
+        if last_checkpoint or best_checkpoint:
+            if fold != i:
+                continue
+
+        fold_dir = os.path.join(save_dir, i)
+        os.makedirs(fold_dir, exist_ok=True)
 
         train, test, val = prepare_dataloader(splits, configs["batch_size"])
 
-        train_model(train_loader=train, val_loader=val, checkpoint_dir=save_dir, writer=writer, **configs)
+        if not best_checkpoint:
+            train_model(train_loader=train, val_loader=val, checkpoint_dir=fold_dir, resume_from=last_checkpoint, writer=writer, **configs)
+            if last_checkpoint:
+                last_checkpoint = None
 
-        best_checkpoint = os.path.join(save_dir, "best_checkpoint.pth")
+        best_checkpoint = os.path.join(fold_dir, "best_checkpoint.pth")
         model = load_checkpoint(best_checkpoint, **configs)[1]
 
-        test_model(model, test, test_dir=save_dir, **configs)
+        test_model(model, test, test_dir=fold_dir, **configs)
 
     if configs["tensor_board"]:
         writer.close()
@@ -76,7 +93,7 @@ if __name__ == "__main__":
     config = parse_arguments()
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     config.update({"device": device})
-    
+
     print(config)
 
     printProblem(config=config)

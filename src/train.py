@@ -1,4 +1,4 @@
-from collections import OrderedDict, defaultdict
+from collections import OrderedDict
 from tqdm import tqdm
 import numpy as np
 import torch
@@ -18,8 +18,11 @@ def save_checkpoint(filename, epoch, model, criterion, optimizer, loss, loss_val
     torch.save(checkpoint, filename)
 
 
-def load_checkpoint(filename, model, optimizer, **kwargs):
-    checkpoint = torch.load(filename)
+def load_checkpoint(filename, model, optimizer, device, **kwargs):
+    if not os.path.exists(filename):
+        return None
+
+    checkpoint = torch.load(filename, map_location=device)
 
     epoch = checkpoint["epoch"]
     model.load_state_dict(checkpoint["model_state_dict"])
@@ -27,23 +30,6 @@ def load_checkpoint(filename, model, optimizer, **kwargs):
     optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
 
     return epoch, model, criterion, optimizer
-
-
-def save_state(self, fold, epoch, model, optimizer, schedulers, file_name=None):
-    if file_name is None:
-        file_name = "model_fold_{:02d}_epochs_{:04d}.pt".format(fold, epoch)
-
-    train_state_path = os.path.join(self.models_dirpath, file_name)
-    torch.save(
-        {
-            "fold": fold,
-            "epoch": epoch,
-            "model": model.state_dict(),
-            "optimizer": optimizer.state_dict(),
-            **{f"scheduler{i}": scheduler.state_dict() for i, scheduler in enumerate(schedulers)},
-        },
-        train_state_path,
-    )
 
 
 def train_epoch(model, data_loader, epoch, max_epoch, criterion, optimizer, device):
@@ -123,17 +109,28 @@ def evaluate_model(model, data_loader, criterion, device, save_test=False):
     return avg_loss, result
 
 
-def train_model(model, train_loader, val_loader, max_epochs: int, criterion, optimizer, device, epoch=None, checkpoint_dir="./checkpoints", writer=None, **kwargs):
+def train_model(
+    model,
+    train_loader,
+    val_loader,
+    max_epochs: int,
+    optimizer,
+    criterion,
+    device,
+    checkpoint_dir="./checkpoints",
+    resume_from=None,
+    writer=None,
+    **kwargs,
+):
     best_loss = np.inf
-    history = defaultdict(list)
-    epoch = epoch if isinstance(epoch, int) else 0
+
+    epoch = 0
+    if resume_from:
+        epoch, model, criterion, optimizer = load_checkpoint(resume_from, model, optimizer, device)
+
     for epoch in range(epoch, max_epochs):
         loss = train_epoch(model, train_loader, epoch, max_epochs, criterion, optimizer, device)
         loss_val, _ = evaluate_model(model, val_loader, criterion, device)
-
-        history["loss"].append(loss)
-        history["loss_val"].append(loss_val)
-        history["epoch"].append(epoch)
 
         if writer:
             temp = {"Train": loss, "Val": loss_val}
@@ -147,10 +144,15 @@ def train_model(model, train_loader, val_loader, max_epochs: int, criterion, opt
             filename = os.path.join(checkpoint_dir, "best_checkpoint.pth")
             save_checkpoint(filename, epoch + 1, model, criterion, optimizer, loss, loss_val)
 
-    return history
 
-
-def test_model(test_model, test_loader, criterion, device, test_dir="./tests/", **kwargs):
+def test_model(
+    test_model,
+    test_loader,
+    criterion,
+    device,
+    test_dir="./tests/",
+    **kwargs,
+):
     _, result = evaluate_model(test_model, test_loader, criterion, device, save_test=True)
     filename = os.path.join(test_dir, "test_predictions.pth")
     torch.save(result, filename)

@@ -9,6 +9,8 @@ def parse_arguments():
     parse.add_argument("--cv", type=int, default=None)
     parse.add_argument("--val-size", help="Number of splits to execute, therefore, 1/n validation size", type=int, default=4)
     parse.add_argument("--test-size", help="Number of splits to execute, therefore, 1/n test size", type=int, default=10)
+    parse.add_argument("--test", help="Path to best training checkpoint for evaluation", type=str, default=None)
+    parse.add_argument("--resume", help="Path to last training checkpoint", type=str, default=None)
     parse.add_argument("--tensor-board", action=argparse.BooleanOptionalAction, default=False)
 
     args = parse.parse_args()
