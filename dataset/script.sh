@@ -8,8 +8,6 @@ FIGSHARE_DATASET_FOLDERS=(
     brainTumorDataPublic_1533-2298
     brainTumorDataPublic_2299-3064
 )
-KAGGLE_DATASET="ahmedhamada0/brain-tumor-detection"
-KAGGLE_ZIP="brain-tumor-detection.zip"
 TEMP_FOLDER="tmp"
 
 check_error() {
@@ -36,20 +34,8 @@ done
 python3 process_figshare.py "$TEMP_FOLDER"
 check_error
 
-rm -r "${TEMP_FOLDER:?}/"*
-check_error
-
-# TO USE:
-# https://github.com/Kaggle/kaggle-api/blob/main/docs/README.md#installation
-# https://github.com/Kaggle/kaggle-api/blob/main/docs/README.md#api-credentials
-kaggle datasets download -d "$KAGGLE_DATASET"
-check_error
-
-unzip -q "$KAGGLE_ZIP" "no/*" -d "$TEMP_FOLDER"
-check_error
-
-python3 process_br35.py "${TEMP_FOLDER}/no"
-check_error
+# rm -r "${TEMP_FOLDER:?}/"*
+# check_error
 
 rm -rf "$TEMP_FOLDER"
 check_error

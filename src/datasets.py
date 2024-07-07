@@ -3,7 +3,7 @@ import pandas as pd
 import torch
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset, DataLoader
 from torchvision import transforms
 from PIL import Image
 
@@ -30,13 +30,10 @@ class BrainTumorDataset(Dataset):
     def __init__(
         self,
         metadata: pd.DataFrame,
-        segmentation=False,
-        n_classes: int = 4,
+        n_classes: int,
         transform=None,
     ):
-        self.segmentation = segmentation
         self.n_classes = n_classes
-
         self.transform = transform if transform is not None else transforms.ToTensor()
 
         self.data = np.array(metadata["image_path"])
@@ -54,21 +51,14 @@ class BrainTumorDataset(Dataset):
         mask_path = self.masks[idx]
         mask = np.array(Image.open(mask_path))
 
-        label = self.labels[idx]
-
         transformed = self.transform(image=img, mask=mask)
         img = transformed["image"]
 
-        if self.segmentation:
-            mask: torch.Tensor = transformed["mask"]
-            mask[mask != 0] = label
+        mask: torch.Tensor = transformed["mask"]
+        mask[mask != 0] = self.labels[idx]
+        mask = mask.float() if self.n_classes == 1 else mask.long()
 
-            if self.n_classes == 2: mask = mask.float()
-            else: mask = mask.long()
-
-            return img, mask, img_path
-
-        return img, label, img_path
+        return img, mask, img_path
 
 
 class CrossValidation:
@@ -76,16 +66,18 @@ class CrossValidation:
         self,
         metadata: pd.DataFrame,
         folds: list[np.ndarray],
-        val_size: int = 4,
+        n_classes: int,
+        val_size: int,
         random_state: int = 10,
-        **kwargs,
     ):
         self.metadata = metadata
         self.folds = folds
         self.current_fold = 0
+        self.n_classes = n_classes
+
         self.val_size = val_size
+
         self.random_state = random_state
-        self.kwargs = kwargs
 
     def __len__(self):
         fold_name = "fold_{:02d}".format(self.current_fold)
@@ -105,14 +97,19 @@ class CrossValidation:
         train_val, test = self.folds[fold_name]
         self.current_fold += 1
 
-        train, val = _split_dataset(self.metadata.iloc[train_val], size=self.val_size, random_state=self.random_state)
+        _train_val = _split_dataset(
+            self.metadata.iloc[train_val],
+            self.val_size,
+            random_state=self.random_state,
+        )
+        train, val = _train_val["fold_00"]
 
         return (
             fold_name,
             (
-                BrainTumorDataset(metadata=self.metadata.iloc[train], **self.kwargs),
-                BrainTumorDataset(metadata=self.metadata.iloc[test], **self.kwargs),
-                BrainTumorDataset(metadata=self.metadata.iloc[val], **self.kwargs),
+                BrainTumorDataset(metadata=self.metadata.iloc[train], n_classes=self.n_classes, transform=transform_train),
+                BrainTumorDataset(metadata=self.metadata.iloc[test], n_classes=self.n_classes, transform=transform_eval),
+                BrainTumorDataset(metadata=self.metadata.iloc[val], n_classes=self.n_classes, transform=transform_eval),
             ),
         )
 
@@ -120,39 +117,52 @@ class CrossValidation:
 from sklearn.model_selection import StratifiedGroupKFold
 
 
-def _split_dataset(dataset: pd.DataFrame, size: int, return_all_folds=False, random_state: int = 10) -> tuple[np.ndarray, np.ndarray] | dict[str : tuple[np.ndarray, np.ndarray]]:
-    gss = StratifiedGroupKFold(n_splits=size, shuffle=True, random_state=random_state)
+def _split_dataset(
+    dataset: pd.DataFrame,
+    splits: int,
+    return_all_folds=False,
+    random_state: int = 10,
+) -> tuple[np.ndarray, np.ndarray] | dict[str : tuple[np.ndarray, np.ndarray]]:
+    gss = StratifiedGroupKFold(n_splits=splits, shuffle=True, random_state=random_state)
 
     folds = {}
     for i, f in enumerate(gss.split(dataset["image_path"], dataset["label"], dataset["id"])):
-        if not return_all_folds:
-            return f
         fold_str = "fold_{:02d}".format(i)
         folds[fold_str] = f
+        if not return_all_folds:
+            break
 
     return folds
 
 
 def split_datasets(
     dataset: pd.DataFrame,
+    n_classes: int,
+    test_size: int,
+    val_size: int,
+    cv: bool,
     random_state: int = 10,
-    segmentation=False,
-    n_classes: int = 4,
-    validation_size: int = 4,
-    test_size: int = 10,
-    cv: int = None,
 ):
-    problem = dict(segmentation=segmentation, n_classes=n_classes)
+    folds = _split_dataset(
+        dataset,
+        test_size,
+        return_all_folds=cv,
+        random_state=random_state,
+    )
 
-    if cv:
-        folds = _split_dataset(dataset, size=cv, return_all_folds=True, random_state=random_state)
-        return CrossValidation(dataset, folds, validation_size, transform=transform_eval, **problem)
+    return CrossValidation(
+        dataset,
+        folds,
+        n_classes=n_classes,
+        val_size=val_size,
+        random_state=random_state,
+    )
 
-    train_val, test = _split_dataset(dataset, size=test_size, random_state=random_state)
-    test_dataset = BrainTumorDataset(dataset.iloc[test], transform=transform_eval, **problem)
 
-    train, val = _split_dataset(dataset.iloc[train_val], size=validation_size, random_state=random_state)
-    train_dataset = BrainTumorDataset(dataset.iloc[train], transform=transform_train, **problem)
-    val_dataset = BrainTumorDataset(dataset.iloc[val], transform=transform_eval, **problem)
+def prepare_dataloader(splits, batch_size):
+    training, test, validation = splits
+    train_loader = DataLoader(dataset=training, batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(dataset=test, batch_size=batch_size, shuffle=True)
+    val_loader = DataLoader(dataset=validation, batch_size=batch_size, shuffle=True)
 
-    return [(None, (train_dataset, test_dataset, val_dataset))]
+    return train_loader, test_loader, val_loader
