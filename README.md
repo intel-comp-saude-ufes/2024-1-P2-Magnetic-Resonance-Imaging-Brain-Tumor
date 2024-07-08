@@ -1,28 +1,40 @@
 # 2024-1-P2-Magnetic-Resonance-Imaging-Brain-Tumor-Classification
 
-## Usando o WANDB-AI
+# :computer: Development Tips
 
-Para configurar o _wandb_, é necessário instalar ele.
+## :clipboard: Tensorboard
+
+Rodar o tensorboard sem ter que abrir portas etc.:
 ```bash
-pip install wandb
+    python3 -m tensorboard.main --logdir=runs/run__.../tensorboard
 ```
 
-E então, fazer login.
+## :shell: Executar em segundo plano (ssh)
+
+Colocar a execução em segundo plano e poder fechar o terminal:
 ```bash
-wandb login
+    tmux
+    # Inicialize o environment utilizado para rodar o experimento, se necessário.
+    conda activate tic
+    python3 main.py {args}
+```
+E para sair pressione ```CTRL+b``` e ```d```.
+
+Para retornar ao terminal:
+```bash
+    # Provavelmente a janela se chamará 0, mas confira antes
+    tmux ls
+    tmux attach-session -t 0
 ```
 
-Também é necessário criar um arquivo 'wandb.env' que conterá as informações do projeto e a sua chave API exclusiva. No lugar de _API-KEY_, coloque a chave.
+## :triangular_flag_on_post: Checkpoints
+
+Se o programa falhar, podemos retornar o treino pelo último checkpoint salvo (começa do fold indicado e executa até o fim do resto de folds):
 ```bash
-WANDB_KEY="API-KEY"
-WANDB_PROJECT="2024-1-P2-TIC"
+    python3 main.py {args} --resume=runs/run__.../fold_...
 ```
 
-Com isso, a run será salva online com todas as informações da execução atual.
-
-### Desativando o WANDB-AI
-IMPORTANTE: caso esteja rodando casualmente testes, desetive o wandb para que os resultados não sejam reportados na página do projeto.
-
+Ou se precisamos somente testar novamente um fold:
 ```bash
-wandb offline
+    python3 main.py {args} --test=runs/run__.../fold_...
 ```

@@ -25,21 +25,24 @@ def prepare_dataset(multilabel, cv, test_size, val_size, **kwargs):
 
 
 def run(configs):
-
     last_checkpoint = configs["resume"]
     best_checkpoint = configs["test"]
 
     if last_checkpoint:
         date_time, fold = last_checkpoint.split("/")
         last_checkpoint = os.path.join("./runs", last_checkpoint, "last_checkpoint.pth")
+        print(f" >> Resuming from '{fold}' from '{date_time}'")
     elif best_checkpoint:
         date_time, fold = best_checkpoint.split("/")
+        print(f" >> Testing '{fold}' from '{date_time}'")
     else:
         date_time = datetime.now().strftime("run__%m_%d_%Y__%H_%M_%S")
 
     save_dir = os.path.join("./runs", date_time)
+
     if configs["tensor_board"]:
         writer_dir = os.path.join(save_dir, "tensorboard")
+        os.makedirs(writer_dir, exist_ok=True)
         writer = SummaryWriter(writer_dir)
     else:
         writer = None
@@ -50,6 +53,7 @@ def run(configs):
             if fold != i:
                 continue
 
+        print(f" >> Training '{i}'")
         configs.update(segmentation_config(configs["multilabel"], configs["device"]))
 
         fold_dir = os.path.join(save_dir, i)
@@ -64,6 +68,8 @@ def run(configs):
 
         best_checkpoint = os.path.join(fold_dir, "best_checkpoint.pth")
         model = load_checkpoint(best_checkpoint, **configs)[1]
+
+        print(f" >> Testing '{i}'")
 
         test_model(model, test, test_dir=fold_dir, **configs)
         best_checkpoint = None
@@ -86,13 +92,13 @@ def segmentation_config(multilabel, device):
 
 def printProblem(config):
     device = config["device"]
-    print(f">> Running on {device}")
+    print(f" >> Running on {device}")
 
     model = type(config["model"].model).__name__
     if config["multilabel"]:
-        print(f">> Starting {model} for multilabel segmentaion task...\n")
+        print(f" >> Starting {model} for multilabel segmentation task...\n")
     else:
-        print(f">> Starting {model} for segmentation task...\n")
+        print(f" >> Starting {model} for segmentation task...\n")
 
 
 if __name__ == "__main__":
