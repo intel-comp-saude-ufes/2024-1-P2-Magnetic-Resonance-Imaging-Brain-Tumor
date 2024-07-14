@@ -50,15 +50,18 @@ class BrainTumorDataset(Dataset):
 
         mask_path = self.masks[idx]
         mask = np.array(Image.open(mask_path))
+        
+        label = self.labels[idx]
 
         transformed = self.transform(image=img, mask=mask)
         img = transformed["image"]
 
         mask: torch.Tensor = transformed["mask"]
-        mask[mask != 0] = self.labels[idx]
+        mask[mask != 0] = label
+        
         mask = mask.float() if self.n_classes == 1 else mask.long()
 
-        return img, mask, img_path
+        return img, mask, label, img_path
 
 
 class CrossValidation:

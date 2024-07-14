@@ -16,14 +16,6 @@ class Dice(nn.Module):
         if self.apply_sigmoid:
             output = output.sigmoid()
 
-        if not self.multilabel:
-            return self._dice(output, target).mean()
-
-        target = nnF.one_hot(target, num_classes=output.shape[1]).permute(0, 3, 1, 2).float()
-        dice_per_class = torch.stack([self._dice(output[:, c], target[:, c]) for c in range(output.shape[1])], dim=1)
-        return dice_per_class.mean(dim=1).mean()
-
-    def _dice(self, output, target):
         tp = (output * target).sum(dim=self.dims)
         fp = (output * (1 - target)).sum(dim=self.dims)
         fn = ((1 - output) * target).sum(dim=self.dims)
