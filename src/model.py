@@ -1,29 +1,43 @@
+from collections import OrderedDict
+from torch.nn import functional as nnF
 import torch.nn as nn
 import torchvision.models as models
 
 
 class CNN(nn.Module):
-    def __init__(self, n_outputs, activation=None, pretrained=True):
+    def __init__(self, n_outputs, pretrained=True):
         super(CNN, self).__init__()
 
         weights = "DEFAULT" if pretrained else None
 
-        self.model = models.segmentation.deeplabv3_resnet101(weights=weights, weights_backbone=weights)
-        in_channels = self.model.classifier[-1].in_channels
-        self.model.classifier[-1] = nn.Conv2d(in_channels, n_outputs, kernel_size=1)
-        self.model.aux_classifier = None
+        model = models.segmentation.deeplabv3_resnet101(weights=weights, weights_backbone=weights)
+        in_channels = model.classifier[-1].in_channels
 
-        self.n_outputs = n_outputs
-        self.activation = activation or nn.Identity()
+        self.backbone = nn.Sequential(*list(model.backbone.children()))
+
+        self.segmentation = nn.Sequential(
+            *list(model.classifier.children())[:-1],
+            nn.Conv2d(in_channels, 1, kernel_size=1)
+        )
+
+        self.classification = nn.Sequential(
+            nn.AdaptiveAvgPool2d(output_size=(1, 1)),
+            nn.Flatten(),
+            nn.Linear(in_features=2048, out_features=n_outputs)
+        )
 
     def forward(self, x):
-        x = self.model(x)
-        x = self._model_out_parser(x)
-        x = self.activation(x)
-        return x
+        input_shape = x.shape[-2:]
 
-    def _model_out_parser(self, x):
-        x = x["out"]
-        if self.n_outputs == 1:
-            x = x.squeeze(1)
-        return x
+        features = self.backbone(x)
+
+        classification = self.classification(features)
+
+        segmentation = self.segmentation(features)
+        segmentation = nnF.interpolate(segmentation, size=input_shape, mode="bilinear", align_corners=False)
+        segmentation = segmentation.squeeze(1)
+
+        return OrderedDict([
+            ("seg", segmentation),
+            ("class", classification)
+        ])

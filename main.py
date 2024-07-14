@@ -1,22 +1,23 @@
 import torch
+import torch.nn as nn
 import pandas as pd
 from src.train import train_model, test_model, load_checkpoint
 from src.model import CNN
 from src.datasets import split_datasets, prepare_dataloader
-from src.metrics import SoftDiceLoss, ComposedLoss
+from src.metrics import DiceBCELoss
 from src.utils import parse_arguments
 from datetime import datetime
 import os
 from torch.utils.tensorboard import SummaryWriter
 
 
-def prepare_dataset(multilabel, cv, test_size, val_size, **kwargs):
+def prepare_dataset(cv, test_size, val_size, **kwargs):
     metadata = pd.read_csv("./dataset/data/info.csv")
-    metadata["label"] = metadata["label"].map({"glioma": 0, "meningioma": 1, "pituitary": 2}) if multilabel else 1
+    metadata["label"] = metadata["label"].map({"glioma": 0, "meningioma": 1, "pituitary": 2})
 
     return split_datasets(
         metadata,
-        n_classes=(metadata["label"].nunique() if multilabel else 1),
+        n_classes=metadata["label"].nunique(),
         test_size=(test_size if not cv else cv),
         val_size=val_size,
         cv=cv is not None,
@@ -54,7 +55,7 @@ def run(configs):
                 continue
 
         print(f" >> Training '{i}'")
-        configs.update(segmentation_config(configs["multilabel"], configs["device"]))
+        configs.update(segmentation_config(configs["device"]))
 
         fold_dir = os.path.join(save_dir, i)
         os.makedirs(fold_dir, exist_ok=True)
@@ -78,10 +79,15 @@ def run(configs):
         writer.close()
 
 
-def segmentation_config(multilabel, device):
-    model = CNN(3 if multilabel else 1).to(device)
+def segmentation_config(device):
+    model = CNN(n_outputs=3, pretrained=True).to(device)
 
-    criterion = ComposedLoss(loss_funcs=[SoftDiceLoss(multilabel=multilabel), torch.nn.CrossEntropyLoss() if multilabel else torch.nn.BCEWithLogitsLoss()])
+    DBCELoss_fn = DiceBCELoss()
+    CELoss_fn = nn.CrossEntropyLoss()
+
+    criterion = lambda outputs, masks, labels: (
+        DBCELoss_fn(outputs["seg"], masks) + CELoss_fn(outputs["class"], labels)
+    )
 
     return dict(
         model=model,
@@ -93,12 +99,7 @@ def segmentation_config(multilabel, device):
 def printProblem(config):
     device = config["device"]
     print(f" >> Running on {device}")
-
-    model = type(config["model"].model).__name__
-    if config["multilabel"]:
-        print(f" >> Starting {model} for multilabel segmentation task...\n")
-    else:
-        print(f" >> Starting {model} for segmentation task...\n")
+    print(f" >> Starting segmentation task...\n")
 
 
 if __name__ == "__main__":
@@ -106,7 +107,7 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     config.update({"device": device})
 
-    run_configs = segmentation_config(config["multilabel"], device)
+    run_configs = segmentation_config(device)
     run_configs.update(config)
 
     printProblem(run_configs)

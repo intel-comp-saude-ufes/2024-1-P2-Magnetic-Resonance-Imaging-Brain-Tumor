@@ -3,7 +3,6 @@ import argparse
 
 def parse_arguments():
     parse = argparse.ArgumentParser(description="Brain MRI prediction")
-    parse.add_argument("--multilabel", help="Enable label segmentation", action=argparse.BooleanOptionalAction, default=False)
     parse.add_argument("--max-epochs", type=int)
     parse.add_argument("--batch-size", type=int)
     parse.add_argument("--cv", type=int, default=None)

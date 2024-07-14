@@ -9,9 +9,9 @@ from PIL import Image
 
 transform_train = A.Compose(
     [
-        A.Resize(224, 224),
-        A.Affine(translate_percent=0.04, scale=(0.8, 1.2)),
-        A.ColorJitter(brightness=(0.6, 1.4), contrast=(0.7, 1.3)),
+        A.Resize(width=224, height=224),
+        A.Affine(scale=(0.8, 1.2), translate_percent=0.125, keep_ratio=True),
+        A.ColorJitter(brightness=(0.6, 1.4), contrast=(0.6, 1.4)),
         A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ToTensorV2(transpose_mask=True),
     ]
@@ -19,7 +19,7 @@ transform_train = A.Compose(
 
 transform_eval = A.Compose(
     [
-        A.Resize(224, 224),
+        A.Resize(width=224, height=224),
         A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
         ToTensorV2(transpose_mask=True),
     ]
@@ -56,10 +56,8 @@ class BrainTumorDataset(Dataset):
         transformed = self.transform(image=img, mask=mask)
         img = transformed["image"]
 
-        mask: torch.Tensor = transformed["mask"]
-        mask[mask != 0] = label
-        
-        mask = mask.float() if self.n_classes == 1 else mask.long()
+        mask: torch.Tensor = transformed["mask"].float()
+        mask[mask != 0] = 1
 
         return img, mask, label, img_path
 
