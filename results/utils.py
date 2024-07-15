@@ -10,7 +10,29 @@ import matplotlib.pyplot as plt
 import albumentations as A
 from PIL import Image
 
-from sklearn.metrics import balanced_accuracy_score, recall_score
+from sklearn.metrics import balanced_accuracy_score, recall_score, confusion_matrix, ConfusionMatrixDisplay
+
+
+def plot_confusion_matrix(files):
+    y_true, y_pred = [], []
+    for _, fold in files.items():
+        outputs = fold["y_pred"]
+        img_paths = fold["paths"]
+        _, labels = get_all_info(img_paths)
+
+        y_true.append(torch.from_numpy(labels))
+        y_pred.append(torch.argmax(outputs["class"], 1))
+
+    y_true = torch.cat(y_true)
+    y_pred = torch.cat(y_pred)
+
+    labels = [i.title() for i in ["glioma", "meningioma", "pituitary"]]
+    cm = confusion_matrix(y_true, y_pred)
+    disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=labels)
+    disp = disp.plot(cmap="Blues")
+    plt.yticks(rotation=90, ha='center', rotation_mode='anchor')
+    plt.savefig("disp.svg")
+    return disp
 
 
 def _dice(output, target):
