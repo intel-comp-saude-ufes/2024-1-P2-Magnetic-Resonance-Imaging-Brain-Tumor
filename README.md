@@ -1,5 +1,5 @@
 # 2024-1-P2-Magnetic-Resonance-Imaging-Brain-Tumor-Classification
-
+Vídeo explicativo: [2024-1-P2 - Segmentação e Classificação de Tumores Cerebrais a partir de MRI utilizando CNN's](https://www.youtube.com/watch?v=nvOFCYrG2II).
 
 ## Sumário
 - [Introdução](#introdução)
