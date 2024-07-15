@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 import albumentations as A
 from PIL import Image
 
-from sklearn.metrics import balanced_accuracy_score, recall_score, confusion_matrix, ConfusionMatrixDisplay
+from sklearn.metrics import balanced_accuracy_score, confusion_matrix, ConfusionMatrixDisplay
 
 
 def plot_confusion_matrix(files):
@@ -30,7 +30,7 @@ def plot_confusion_matrix(files):
     cm = confusion_matrix(y_true, y_pred)
     disp = ConfusionMatrixDisplay(confusion_matrix=cm, display_labels=labels)
     disp = disp.plot(cmap="Blues")
-    plt.yticks(rotation=90, ha='center', rotation_mode='anchor')
+    plt.yticks(rotation=90, ha="center", rotation_mode="anchor")
     plt.savefig("disp.svg")
     return disp
 
@@ -104,7 +104,7 @@ def calculate_patient_scores(outputs, masks, labels, img_paths):
         p_idx, _, _ = get_patient_info(p_img_ref, img_paths)
 
         dice = _dice(outputs["seg"][p_idx], masks[p_idx])
-        acc = recall_score(labels[p_idx], np.argmax(outputs["class"][p_idx], 1), average="macro")
+        acc = balanced_accuracy_score(labels[p_idx], np.argmax(outputs["class"][p_idx], 1))
         p_scores.append((p_idx, dice, acc))
 
         available_indices -= set(p_idx)
@@ -112,8 +112,9 @@ def calculate_patient_scores(outputs, masks, labels, img_paths):
     return p_scores
 
 
-def show(files):
-    scores = {}
+def show(files, verbose=False):
+    dice_scores = []
+    acc_scores = []
     for name, fold in files.items():
         outputs = fold["y_pred"]
         img_paths = fold["paths"]
@@ -122,12 +123,14 @@ def show(files):
         dice = _dice(outputs["seg"], masks)
 
         y_pred = torch.argmax(outputs["class"], 1)
-        acc = recall_score(labels, y_pred, average="macro")
+        acc = balanced_accuracy_score(labels, y_pred)
 
-        print(name)
-        print("Dice (F1 macro): {:02.02f}%".format(dice * 100))
-        print("Balanced Accuracy: {:02.02f}%".format(acc * 100))
-        scores[name] = (dice, acc)
+        if verbose:
+            print(name)
+            print("Dice (F1 macro): {:02.02f}%".format(dice * 100))
+            print("Balanced accuracy: {:02.02f}%".format(acc * 100))
+        dice_scores.append(dice)
+        acc_scores.append(acc)
 
         p_scores = calculate_patient_scores(outputs, masks, labels, img_paths)
         p_scores.sort(key=lambda x: x[1])
@@ -138,7 +141,7 @@ def show(files):
         b_idx, b_score, _ = p_scores[-1]
         show_patient_results(b_idx, outputs, masks, labels, img_paths, name + " best dice score: {:02.02f}".format(b_score))
 
-    return scores
+    return np.array(dice_scores), np.array(acc_scores)
 
 
 def get_all_info(img_paths):
