@@ -64,8 +64,6 @@ def run(configs):
 
         if not best_checkpoint:
             train_model(train_loader=train, val_loader=val, checkpoint_dir=fold_dir, resume_from=last_checkpoint, writer=writer, fold=i, **configs)
-            if last_checkpoint:
-                last_checkpoint = None
 
         best_checkpoint = os.path.join(fold_dir, "best_checkpoint.pth")
         model = load_checkpoint(best_checkpoint, **configs)[1]
@@ -74,6 +72,8 @@ def run(configs):
 
         test_model(model, test, test_dir=fold_dir, **configs)
         best_checkpoint = None
+
+        if last_checkpoint: break
 
     if configs["tensor_board"]:
         writer.close()
