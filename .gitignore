@@ -3,3 +3,4 @@ runs/
 test.ipynb
 dataset/data
 dataset/*.zip
+results/disp.svg
