@@ -4,8 +4,9 @@ Vídeo explicativo: [2024-1-P2 - Segmentação e Classificação de Tumores Cere
 ## Sumário
 - [Introdução](#introdução)
 - [Dataset](#dataset)
-- [Instalação](instalação)
+- [Instalação](#instalação)
 - [Execução](#executando)
+- [DevelopmentTips](#development-tips)
 
 <div id="introdução"></div>
 
@@ -41,6 +42,7 @@ cd datasets
 bash script.sh
 cd ..
 ```
+
 <div id="executando"></div>
 
 ## Execução
@@ -54,16 +56,18 @@ Argumentos:
 python3 ./main.py <argumentos>
 ```
 
-# :computer: Development Tips
+<div id="development-tips"></div>
 
-## :clipboard: Tensorboard
+## :computer: Development Tips
+
+### :clipboard: Tensorboard
 
 Rodar o tensorboard sem ter que abrir portas etc.:
 ```bash
     python3 -m tensorboard.main --logdir=runs/run__.../tensorboard
 ```
 
-## :shell: Executar em segundo plano (ssh)
+### :shell: Executar em segundo plano (ssh)
 
 Colocar a execução em segundo plano e poder fechar o terminal:
 ```bash
@@ -81,7 +85,7 @@ Para retornar ao terminal:
     tmux attach-session -t 0
 ```
 
-## :triangular_flag_on_post: Checkpoints
+### :triangular_flag_on_post: Checkpoints
 
 Se o programa falhar, podemos retornar o treino pelo último checkpoint salvo (começa do fold indicado e executa até o fim do resto de folds):
 ```bash
